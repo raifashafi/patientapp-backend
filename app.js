@@ -2,7 +2,9 @@ const express = require("express")
 const cors = require("cors")
 const mongoose = require("mongoose")
 const bcrypt = require("bcrypt")
+const jwt=require("jsonwebtoken")
 const loginModel = require("./models/admin")
+const doctorModel = require("./models/doctor")
 
 
 const app = express()
@@ -35,7 +37,15 @@ app.post("/adminSignin",(req,res)=>{
             if (response.length>0) {
                 const validator=bcrypt.compareSync(input.password,response[0].password)
                 if (validator) {
-                    res.json({ "status": "success" })
+                  //  res.json({ "status": "success" })
+                  jwt.sign({email:input.username},"patient-app",{expiresIn:"1d"},
+                    (error,token)=>{
+                        if (error) {
+                            res.json({ "status": "token creation failed" })
+                        } else {
+                            res.json({ "status": "success","token":token })
+                        }
+                    })
                 } else {
                     res.json({ "status": "wrong password" })
                 }
@@ -44,6 +54,22 @@ app.post("/adminSignin",(req,res)=>{
             }
         }
     ).catch()
+})
+app.post("/addDoctor",(req,res)=>{
+
+    let input=req.body
+    let token=req.headers.token
+    jwt.verify(token,"patient-app",(error,decoded)=>{
+        if (decoded && decoded.email) {
+            let result=new doctorModel(input)
+            result.save()
+            res.json({ "status": "success" })
+        } else {
+            res.json({ "status": "invalid authentication" })
+        }
+    })
+
+
 })
 app.listen(3030, () => {
     console.log("server started")
